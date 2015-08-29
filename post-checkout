@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# Copyright (c) 2015 Alajcev Innokentij <alaitsev@gmail.com>
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction, 
+# including without limitation the rights to use, copy, modify, merge, publish, distribute, 
+# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies or 
+# substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+
+previous_HEAD="$1"
+new_HEAD="$2"
+branch_checkout="$3"
+
+if [ "$branch_checkout" == 1 ]; then
+	__SOFTWARE_VERSION_MAJOR__="0"
+	__SOFTWARE_VERSION_MINOR__="1"
+	__SOFTWARE_VERSION_PATCH__="0"
+
+	if [ ! -f version.h ]; then
+		echo "version.h does not exist"
+		echo "Creating default version.h with Version = $__SOFTWARE_VERSION_MAJOR__.$__SOFTWARE_VERSION_MINOR__.$__SOFTWARE_VERSION_PATCH__"
+		echo -e "/* Version $__SOFTWARE_VERSION_MAJOR__.$__SOFTWARE_VERSION_MINOR__.$__SOFTWARE_VERSION_PATCH__ */\r\n#define __SOFTWARE_VERSION_MAJOR__ $__SOFTWARE_VERSION_MAJOR__\r\n#define __SOFTWARE_VERSION_MINOR__ $__SOFTWARE_VERSION_MINOR__\r\n#define __SOFTWARE_VERSION_PATCH__ $__SOFTWARE_VERSION_PATCH__" > version.h
+	fi
+
+	current_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+	if echo $current_branch | grep -E "(release/[0-9]+\.[0-9]+\.[0-9]+)(((\-|\+).*)?)$"; then
+		echo "On release branch. Check if we need to update version.h"
+
+		branch_version="$(echo $current_branch | sed -e 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')"
+		echo -e "Branch version: $branch_version"
+
+		version_h_version="$(grep Version version.h | sed -e 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')"
+		echo -e "version.h version: $version_h_version"
+
+		if [ $branch_version != $version_h_version ]; then
+			echo "Versions do not match. Updating version.h"
+
+			version_parts=(${branch_version//./ })
+
+			__SOFTWARE_VERSION_MAJOR__=${version_parts[0]}
+			__SOFTWARE_VERSION_MINOR__=${version_parts[1]}
+			__SOFTWARE_VERSION_PATCH__=${version_parts[2]}
+
+			echo -e "/* Version $__SOFTWARE_VERSION_MAJOR__.$__SOFTWARE_VERSION_MINOR__.$__SOFTWARE_VERSION_PATCH__ */\r\n#define __SOFTWARE_VERSION_MAJOR__ $__SOFTWARE_VERSION_MAJOR__\r\n#define __SOFTWARE_VERSION_MINOR__ $__SOFTWARE_VERSION_MINOR__\r\n#define __SOFTWARE_VERSION_PATCH__ $__SOFTWARE_VERSION_PATCH__" > version.h
+
+			git add version.h
+
+			git commit --author="Alajcev Innokentij <alaitsev@gmail.com>" --message="Updated version.h at release branch start."
+		else
+			echo "Versions match. No need to update version.h."
+		fi
+	else
+		if echo $current_branch | grep -E "release\.*"; then
+			echo "Malformed release branch name. Please, follow Semantic Version 2.0.0 specification."
+			echo "Now fallback to previous branch."
+			git checkout @{-1} --quiet
+			exit 1
+		else
+			echo "Not on release branch. No need to update version.h"
+		fi
+	fi
+
+	if ! git ls-files | grep -q version.h; then
+		echo "version.h is not tracked. It will be added under git controll."
+
+		git add version.h
+
+		git commit --author="Alajcev Innokentij <alaitsev@gmail.com>" --message="Added version.h."
+	fi
+fi
