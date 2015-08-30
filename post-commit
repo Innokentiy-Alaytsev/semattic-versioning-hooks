@@ -21,6 +21,21 @@ __SOFTWARE_VERSION_MAJOR__="0"
 __SOFTWARE_VERSION_MINOR__="1"
 __SOFTWARE_VERSION_PATCH__="0"
 
+latest_tag=`git describe --tags`
+
+if [[ $latest_tag != "" ]] ; then
+	project_version="$(echo $latest_tag | sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')"
+
+	if [[ $project_version != "" ]] ; then
+		echo "Version detected by latest tag"
+		version_parts=(${project_version//./ })
+
+		__SOFTWARE_VERSION_MAJOR__=${version_parts[0]}
+		__SOFTWARE_VERSION_MINOR__=${version_parts[1]}
+		__SOFTWARE_VERSION_PATCH__=${version_parts[2]}
+	fi
+fi
+
 if [ ! -f version.h ]; then
 	echo "version.h does not exist"
 	echo "Creating default version.h with Version = $__SOFTWARE_VERSION_MAJOR__.$__SOFTWARE_VERSION_MINOR__.$__SOFTWARE_VERSION_PATCH__"
